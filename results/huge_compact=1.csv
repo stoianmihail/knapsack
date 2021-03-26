@@ -1,0 +1,6 @@
+Compact Knapsack
+Weight: 250
+Found solution at energy -80326.0
+Selected item numbers (0-indexed): [66, 108, 287, 541, 1688, 1755, 1776, 1788, 1868, 2226, 2400, 2577, 2899]
+Selected item weights: [4, 24, 33, 8, 14, 23, 87, 11, 1, 5, 28, 9, 2], total = 249
+Selected item costs: [5562, 6533, 6985, 9537, 3539, 9470, 6062, 7513, 3479, 7141, 5954, 3957, 4615], total = 80347

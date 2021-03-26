@@ -1,0 +1,6 @@
+Regular Knapsack
+Weight: 250
+Found solution at energy -75791.0
+Selected item numbers (0-indexed): [66, 108, 157, 287, 472, 1259, 1303, 1688, 1755, 2226, 2400, 2899]
+Selected item weights: [4, 24, 7, 33, 89, 3, 15, 14, 23, 5, 28, 2], total = 247
+Selected item costs: [5562, 6533, 7489, 6985, 5090, 5130, 8318, 3539, 9470, 7141, 5954, 4615], total = 75826
