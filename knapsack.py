@@ -22,23 +22,8 @@ import dimod
 # Workshop on Classical and Quantum Optimization; ETH Zuerich - August 20, 2014
 # based on Lucas, Frontiers in Physics _2, 5 (2014)
 
-
-def build_knapsack_bqm(costs, weights, weight_capacity):
-    """Construct BQM for the knapsack problem
-
-    Args:
-        costs (array-like):
-            Array of costs associated with the items
-        weights (array-like):
-            Array of weights associated with the items
-        weight_capacity (int):
-            Maximum allowable weight
-
-    Returns:
-        Binary quadratic model instance
-    """
-
-    # Initialize BQM - use large-capacity BQM so that the problem can be
+def solveCompactKnapsack(costs, weights, weight_capacity):
+    print("Compact Knapsack")
     # scaled by the user.
     bqm = dimod.AdjVectorBQM(dimod.Vartype.BINARY)
 
@@ -85,10 +70,84 @@ def build_knapsack_bqm(costs, weights, weight_capacity):
         for j in range(num_slack_variables):
             key = ('x' + str(i), 'y' + str(j))
             bqm.quadratic[key] = -2 * lagrange * weights[i] * y[j]
-
     return bqm
 
-def solve_knapsack(costs, weights, weight_capacity, sampler=None):
+def solveRegularKnapsack(costs, weights, weight_capacity):
+    print("Regular Knapsack")
+    # scaled by the user.
+    bqm = dimod.AdjVectorBQM(dimod.Vartype.BINARY)
+
+    # Lagrangian multiplier
+    # First guess as suggested in Lucas's paper
+    lagrange = max(costs)
+
+    # Number of objects
+    x_size = len(costs)
+
+    # Slack variable list for Lucas's algorithm. The last variable has
+    # a special value because it terminates the sequence.
+    y_size = weight_capacity
+    y = list(range(1, weight_capacity + 1))
+
+    # H_A =
+    # (i) only one fixed weight
+    # (ii) sum of weights = fixed weight
+    # H_B = 
+    # (i) maximize cost
+
+    # Hamiltonian xi-xi terms
+    # H_A(ii) + H_B(i)
+    for k in range(x_size):
+        bqm.set_linear('x' + str(k), lagrange * (weights[k]**2) - costs[k])
+
+    # Hamiltonian xi-xj terms
+    # H_A(ii)
+    for i in range(x_size):
+        for j in range(i + 1, x_size):
+            key = ('x' + str(i), 'x' + str(j))
+            bqm.quadratic[key] = 2 * lagrange * weights[i] * weights[j]
+
+    # Hamiltonian yi-yi terms
+    # H_A(ii) and H_A(i)
+    for k in range(y_size):
+        bqm.set_linear('y' + str(k), lagrange * ((y[k]**2) - 1))
+
+    # Hamiltonian yi-yj terms
+    # H_A(ii) + H_A(i)
+    for i in range(y_size):    
+        for j in range(i + 1, y_size):
+            key = ('y' + str(i), 'y' + str(j))
+            bqm.quadratic[key] = 4 * lagrange * y[i] * y[j]
+
+    # Hamiltonian x-y terms
+    # H_A(ii)
+    for i in range(x_size):
+        for j in range(y_size):
+            key = ('x' + str(i), 'y' + str(j))
+            bqm.quadratic[key] = -2 * lagrange * weights[i] * y[j]
+    bqm.add_offset(lagrange)
+    return bqm
+
+def build_knapsack_bqm(costs, weights, weight_capacity, compact):
+    """Construct BQM for the knapsack problem
+
+    Args:
+        costs (array-like):
+            Array of costs associated with the items
+        weights (array-like):
+            Array of weights associated with the items
+        weight_capacity (int):
+            Maximum allowable weight
+
+    Returns:
+        Binary quadratic model instance
+    """
+
+    if compact:
+        return solveCompactKnapsack(costs, weights, weight_capacity)
+    return solveRegularKnapsack(costs, weights, weight_capacity)
+
+def solve_knapsack(costs, weights, weight_capacity, compact, sampler=None):
     """Construct BQM and solve the knapsack problem
 
     Args:
@@ -107,12 +166,12 @@ def solve_knapsack(costs, weights, weight_capacity, sampler=None):
             List of indices of selected items
             Solution energy
     """
-    bqm = build_knapsack_bqm(costs, weights, weight_capacity)
+    bqm = build_knapsack_bqm(costs, weights, weight_capacity, compact)
 
     if sampler is None:
         sampler = LeapHybridSampler()
 
-    sampleset = sampler.sample(bqm, label='Example - Knapsack')
+    sampleset = sampler.sample(bqm, label='Example - Knapsack_' + ('Compact' if compact else 'Regular'))
     sample = sampleset.first.sample
     energy = sampleset.first.energy
 
@@ -131,14 +190,22 @@ def solve_knapsack(costs, weights, weight_capacity, sampler=None):
 
 
 if __name__ == '__main__':
-
+    if not len(sys.argv):
+        print("Usage: python " + sys.argv[0] + " <file> <weight_capacity> [compact=0|1]")
+        sys.exit(-1)
+        
     data_file_name = sys.argv[1] if len(sys.argv) > 1 else "data/large.csv"
-    weight_capacity = float(sys.argv[2]) if len(sys.argv) > 2 else 70
+    weight_capacity = int(sys.argv[2]) if len(sys.argv) > 2 else 70
+
+    compact = True
+    if len(sys.argv) == 4:
+        compact = bool(int(sys.argv[3]))
+    print("compact=" + str(compact))
 
     # parse input data
     df = pd.read_csv(data_file_name, names=['cost', 'weight'])
 
-    selected_item_indices, energy = solve_knapsack(df['cost'], df['weight'], weight_capacity)
+    selected_item_indices, energy = solve_knapsack(df['cost'], df['weight'], weight_capacity, compact)
     selected_weights = list(df.loc[selected_item_indices,'weight'])
     selected_costs = list(df.loc[selected_item_indices,'cost'])
 
